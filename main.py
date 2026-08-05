@@ -4,12 +4,12 @@ import hmac
 import hashlib
 import time
 import requests
+import bcrypt
 from fastapi import FastAPI, Request, Form, File, UploadFile, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 
 import models
 from database import engine, get_db
@@ -22,10 +22,14 @@ os.makedirs("static/uploads", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Хеширование пароля через чистый bcrypt без passlib
+def hash_password(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 def verify_bybit_keys(api_key: str, api_secret: str) -> bool:
-    """ Настоящая валидация ключей через REST API Bybit """
+    """ Валидация ключей через REST API Bybit """
     url = "https://api.bybit.com/v5/account/wallet-balance"
     timestamp = str(int(time.time() * 1000))
     recv_window = "5000"
@@ -81,7 +85,7 @@ async def register_user(
             shutil.copyfileobj(avatar.file, buffer)
         avatar_url = f"/{file_location}"
 
-    hashed_pwd = pwd_context.hash(password)
+    hashed_pwd = hash_password(password)
     new_user = models.User(name=name, username=username, hashed_password=hashed_pwd, avatar_url=avatar_url)
     db.add(new_user)
     db.commit()
@@ -99,7 +103,6 @@ async def save_api_keys(
     api_secret: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    # Валидация реального Bybit API
     if platform.lower() == "bybit":
         is_valid = verify_bybit_keys(api_key, api_secret)
         if not is_valid:
@@ -108,14 +111,12 @@ async def save_api_keys(
                 content={"success": False, "message": "Ошибка: Биржа Bybit отклонила ключи! Перепутаны местами или неверные данные."}
             )
     else:
-        # Для базовой проверки остальных сервисов на этапе теста
         if len(api_key) < 12 or len(api_secret) < 12:
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "message": "Ошибка: Неверная длина ключей для платформы."}
             )
 
-    # Сохраняем или обновляем ключ в базе
     existing = db.query(models.ApiKey).filter(models.ApiKey.user_id == user_id, models.ApiKey.platform == platform).first()
     if existing:
         existing.api_key = api_key
