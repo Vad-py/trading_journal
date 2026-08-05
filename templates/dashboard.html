@@ -14,8 +14,30 @@
         .header-left { display: flex; align-items: center; gap: 20px; }
         .logo { font-size: 20px; font-weight: bold; color: #00e676; text-decoration: none; }
         
-        .nav-btn { background: transparent; color: #aaa; border: none; font-size: 15px; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 6px; transition: 0.2s; }
-        .nav-btn:hover, .nav-btn.active { color: #fff; background: #232631; }
+        /* Стильная подсвечиваемая кнопка "Мои сделки" */
+        .nav-btn { 
+            background: #232631; 
+            color: #00e676; 
+            border: 1px solid rgba(0, 230, 118, 0.4); 
+            font-size: 14px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            padding: 7px 16px; 
+            border-radius: 6px; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.1);
+        }
+        .nav-btn:hover { 
+            background: #00e676; 
+            color: #121318; 
+            box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+        }
+        .nav-btn.active { 
+            background: #00e676; 
+            color: #121318; 
+            border-color: #00e676;
+            box-shadow: 0 0 15px rgba(0, 230, 118, 0.5);
+        }
 
         .user-panel { display: flex; align-items: center; gap: 15px; }
 
@@ -48,10 +70,10 @@
         .val-positive { color: #00e676; font-weight: 600; }
         .val-negative { color: #ff5252; font-weight: 600; }
 
-        /* Окно детального просмотра сделки (с графиком) */
+        /* Окно детального просмотра сделки (темный контейнер графика) */
         .trade-details-panel { display: none; margin-top: 20px; background: #1a1c23; border: 1px solid #2a2d37; border-radius: 8px; padding: 20px; }
         .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        #chartContainer { width: 100%; height: 400px; background: #121318; border-radius: 6px; }
+        #chartContainer { width: 100%; height: 450px; background-color: #121318; border-radius: 6px; overflow: hidden; }
 
         /* Модальные окна API */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000; }
@@ -110,13 +132,11 @@
         </div>
     </header>
 
-    <!-- Главный баннер приветствия -->
     <div class="main-container" id="welcomeBlock">
         <h2>Добро пожаловать в Трейдинг Журнал!</h2>
         <p style="margin-top: 10px;">Подключите API-ключи для автоматической загрузки сделок.</p>
     </div>
 
-    <!-- Раздел "Мои сделки" -->
     <div class="trades-container" id="tradesBlock">
         <h3 style="margin-bottom: 15px;">История сделок</h3>
         <table class="trades-table">
@@ -134,11 +154,9 @@
                 </tr>
             </thead>
             <tbody id="tradesTableBody">
-                <!-- Сделки загружаются скриптом -->
             </tbody>
         </table>
 
-        <!-- Блок графика для открытой сделки -->
         <div class="trade-details-panel" id="tradeDetailsPanel">
             <div class="chart-header">
                 <h3 id="chartTitle">График сделки</h3>
@@ -148,7 +166,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно выбора платформы -->
+    <!-- Модальные окна API -->
     <div class="modal" id="apiModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -180,7 +198,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно ввода ключей -->
     <div class="modal" id="keyFormModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -210,15 +227,26 @@
         const userId = {{ user.id }};
         const userApiKeys = JSON.parse(localStorage.getItem(`user_api_keys_${userId}`) || '{}');
 
-        // Пример подгружаемых сделок (в будущем наполняются от API)
         const sampleTrades = [
-            { ticker: "BLESSUSDT", entry: "05 авг 19:57:52", exit: "05 авг 19:58:02", side: "SHORT", pnlPercent: "+1.46%", profit: "+2.05 $", revenue: "2.20 $", commission: "0.15 $", volume: "149 $", chartData: [
-                { time: '2026-08-05', open: 0.023, high: 0.027, low: 0.022, close: 0.025 },
-                { time: '2026-08-06', open: 0.025, high: 0.026, low: 0.023, close: 0.023 }
-            ]},
-            { ticker: "HEIUSDT", entry: "05 авг 19:13:14", exit: "05 авг 19:13:25", side: "SHORT", pnlPercent: "-0.85%", profit: "-1.44 $", revenue: "-1.29 $", commission: "0.15 $", volume: "151 $", chartData: [
-                { time: '2026-08-05', open: 0.050, high: 0.052, low: 0.048, close: 0.051 }
-            ]}
+            { 
+                ticker: "BLESSUSDT", entry: "05 авг 19:57:52", exit: "05 авг 19:58:02", side: "SHORT", 
+                pnlPercent: "+1.46%", profit: "+2.05 $", revenue: "2.20 $", commission: "0.15 $", volume: "149 $", 
+                chartData: [
+                    { time: 1691230000, open: 0.0240, high: 0.0245, low: 0.0238, close: 0.0242 },
+                    { time: 1691230060, open: 0.0242, high: 0.0268, low: 0.0241, close: 0.0265 },
+                    { time: 1691230120, open: 0.0265, high: 0.0270, low: 0.0235, close: 0.0238 },
+                    { time: 1691230180, open: 0.0238, high: 0.0242, low: 0.0230, close: 0.0234 },
+                    { time: 1691230240, open: 0.0234, high: 0.0240, low: 0.0232, close: 0.0239 }
+                ]
+            },
+            { 
+                ticker: "HEIUSDT", entry: "05 авг 19:13:14", exit: "05 авг 19:13:25", side: "SHORT", 
+                pnlPercent: "-0.85%", profit: "-1.44 $", revenue: "-1.29 $", commission: "0.15 $", volume: "151 $", 
+                chartData: [
+                    { time: 1691230000, open: 0.0510, high: 0.0525, low: 0.0505, close: 0.0520 },
+                    { time: 1691230060, open: 0.0520, high: 0.0530, low: 0.0512, close: 0.0528 }
+                ]
+            }
         ];
 
         function updateApiHeaderBadge() {
@@ -257,7 +285,7 @@
             const tbody = document.getElementById('tradesTableBody');
             tbody.innerHTML = '';
 
-            sampleTrades.forEach((trade, idx) => {
+            sampleTrades.forEach((trade) => {
                 const tr = document.createElement('tr');
                 const isPos = trade.pnlPercent.startsWith('+');
                 tr.onclick = () => openTradeChart(trade);
@@ -286,17 +314,30 @@
             panel.style.display = 'block';
             container.innerHTML = '';
 
+            // Явное указание темной схемы для предотвращения белого фона
             chartInstance = LightweightCharts.createChart(container, {
-                layout: { backgroundColor: '#121318', textColor: '#d1d4dc' },
-                grid: { vertLines: { color: '#222530' }, horzLines: { color: '#222530' } }
+                width: container.clientWidth,
+                height: 450,
+                layout: {
+                    background: { type: 'solid', color: '#121318' },
+                    textColor: '#d1d4dc',
+                },
+                grid: {
+                    vertLines: { color: '#1f222d' },
+                    horzLines: { color: '#1f222d' },
+                },
             });
 
             const candleSeries = chartInstance.addCandlestickSeries({
-                upColor: '#00e676', downColor: '#ff5252',
-                borderVisible: false, wickUpColor: '#00e676', wickDownColor: '#ff5252'
+                upColor: '#00e676',
+                downColor: '#ff5252',
+                borderVisible: false,
+                wickUpColor: '#00e676',
+                wickDownColor: '#ff5252',
             });
 
             candleSeries.setData(trade.chartData);
+            chartInstance.timeScale().fitContent();
         }
 
         function closeChart() {
@@ -330,7 +371,7 @@
             const submitBtn = document.getElementById('submitBtn');
 
             err.style.display = 'none';
-            submitBtn.innerText = "Строгая проверка на сервере...";
+            submitBtn.innerText = "Проверка на сервере...";
 
             const formData = new FormData();
             formData.append('user_id', userId);
