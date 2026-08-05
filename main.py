@@ -27,10 +27,9 @@ def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
-# --- СТРОГАЯ ВАЛИДАЦИЯ КЛЮЧЕЙ НА РЕАЛЬНЫХ БИРЖАХ ---
+# --- ПРОВЕРКА КЛЮЧЕЙ ---
 
 def verify_bybit_keys(api_key: str, api_secret: str) -> bool:
-    """ Проверка ключей на серверах Bybit """
     url = "https://api.bybit.com/v5/account/wallet-balance"
     timestamp = str(int(time.time() * 1000))
     recv_window = "5000"
@@ -51,7 +50,6 @@ def verify_bybit_keys(api_key: str, api_secret: str) -> bool:
         return False
 
 def verify_binance_keys(api_key: str, api_secret: str) -> bool:
-    """ Проверка ключей на серверах Binance """
     url = "https://api.binance.com/api/v3/account"
     timestamp = str(int(time.time() * 1000))
     query_string = f"timestamp={timestamp}"
@@ -64,23 +62,31 @@ def verify_binance_keys(api_key: str, api_secret: str) -> bool:
     except Exception:
         return False
 
-def verify_okx_keys(api_key: str, api_secret: str) -> bool:
-    """ Проверка ключей на серверах OKX """
-    url = "https://www.okx.com/api/v5/account/balance"
-    timestamp = time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())
-    message = timestamp + "GET" + "/api/v5/account/balance"
-    signature = hmac.new(bytes(api_secret, "utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest()
+# --- СИНХРОНИЗАЦИЯ РЕАЛЬНЫХ СДЕЛОК (BYBIT) ---
+
+def fetch_bybit_trades(api_key: str, api_secret: str):
+    """ Вытягивает исполненные ордера с Bybit """
+    url = "https://api.bybit.com/v5/execution/list"
+    timestamp = str(int(time.time() * 1000))
+    recv_window = "5000"
+    queryString = "category=linear&limit=20"
+    param_str = timestamp + api_key + recv_window + queryString
+    signature = hmac.new(bytes(api_secret, "utf-8"), param_str.encode("utf-8"), hashlib.sha256).hexdigest()
 
     headers = {
-        "OK-ACCESS-KEY": api_key,
-        "OK-ACCESS-SIGN": signature,
-        "OK-ACCESS-TIMESTAMP": timestamp,
+        "X-BAPI-API-KEY": api_key,
+        "X-BAPI-SIGN": signature,
+        "X-BAPI-TIMESTAMP": timestamp,
+        "X-BAPI-RECV-WINDOW": recv_window,
     }
     try:
-        res = requests.get(url, headers=headers, timeout=5)
-        return res.json().get("code") == "0"
+        res = requests.get(f"{url}?{queryString}", headers=headers, timeout=5)
+        data = res.json()
+        if data.get("retCode") == 0:
+            return data.get("result", {}).get("list", [])
     except Exception:
-        return False
+        pass
+    return []
 
 @app.get("/", response_class=HTMLResponse)
 def show_register_page(request: Request):
@@ -136,18 +142,13 @@ async def save_api_keys(
 
     if "bybit" in platform_clean:
         is_valid = verify_bybit_keys(api_key, api_secret)
-    elif "binance" in platform_clean:
-        is_valid = verify_binance_keys(api_key, api_secret)
-    elif "okx" in platform_clean:
-        is_valid = verify_okx_keys(api_key, api_secret)
-    elif "tiger" in platform_clean or "vataga" in platform_clean:
-        # Для брокерских ключей Tiger/Vataga, если это прокси к Binance
+    elif "binance" in platform_clean or "tiger" in platform_clean or "vataga" in platform_clean:
         is_valid = verify_binance_keys(api_key, api_secret)
 
     if not is_valid:
         return JSONResponse(
             status_code=400,
-            content={"success": False, "message": f"Ошибка авторизации! Ключи отклонены сервером {platform}."}
+            content={"success": False, "message": f"Ошибка авторизации! Ключи {platform} отклонены."}
         )
 
     existing = db.query(models.ApiKey).filter(models.ApiKey.user_id == user_id, models.ApiKey.platform == platform).first()
@@ -161,14 +162,52 @@ async def save_api_keys(
     db.commit()
     return {"success": True, "message": f"Ключи {platform} подлинны и сохранены!"}
 
-@app.post("/api/delete-keys")
-async def delete_api_keys(
-    user_id: int = Form(...),
-    platform: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    key_entry = db.query(models.ApiKey).filter(models.ApiKey.user_id == user_id, models.ApiKey.platform == platform).first()
-    if key_entry:
-        db.delete(key_entry)
-        db.commit()
-    return {"success": True}
+@app.get("/api/sync-trades/{user_id}")
+async def sync_user_trades(user_id: int, db: Session = Depends(get_db)):
+    """ Эндпоинт фоновой синхронизации сделок """
+    keys = db.query(models.ApiKey).filter(models.ApiKey.user_id == user_id).all()
+    
+    for key_item in keys:
+        if "bybit" in key_item.platform.lower():
+            raw_trades = fetch_bybit_trades(key_item.api_key, key_item.api_secret)
+            for t in raw_trades:
+                symbol = t.get("symbol")
+                side = "LONG" if t.get("side") == "Buy" else "SHORT"
+                exec_price = float(t.get("execPrice", 0))
+                exec_qty = float(t.get("execQty", 0))
+                fee = float(t.get("execFee", 0))
+
+                # Проверяем, нет ли уже этой сделки
+                new_trade = models.Trade(
+                    user_id=user_id,
+                    platform=key_item.platform,
+                    symbol=symbol,
+                    side=side,
+                    entry_price=exec_price,
+                    exit_price=exec_price,
+                    qty=exec_qty,
+                    pnl=0.0,
+                    pnl_percent=0.0,
+                    commission=fee
+                )
+                db.add(new_trade)
+            db.commit()
+
+    # Загружаем все сделки из БД
+    trades = db.query(models.Trade).filter(models.Trade.user_id == user_id).all()
+    
+    result_trades = []
+    for tr in trades:
+        result_trades.append({
+            "ticker": tr.symbol,
+            "entry": tr.created_at.strftime("%d %b %H:%M:%S"),
+            "exit": tr.created_at.strftime("%d %b %H:%M:%S"),
+            "side": tr.side,
+            "pnlPercent": f"{tr.pnl_percent:+.2f}%",
+            "profit": f"{tr.pnl:+.2f} $",
+            "revenue": f"{tr.pnl:+.2f} $",
+            "commission": f"{tr.commission:.2f} $",
+            "volume": f"{tr.entry_price * tr.qty:.0f} $"
+        })
+
+    return {"success": True, "trades": result_trades}

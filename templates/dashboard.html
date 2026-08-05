@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Journal</title>
-    <!-- Библиотека графиков TradingView Lightweight Charts -->
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- Библиотека TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background-color: #121318; color: #ffffff; min-height: 100vh; }
@@ -14,7 +14,6 @@
         .header-left { display: flex; align-items: center; gap: 20px; }
         .logo { font-size: 20px; font-weight: bold; color: #00e676; text-decoration: none; }
         
-        /* Стильная подсвечиваемая кнопка "Мои сделки" */
         .nav-btn { 
             background: #232631; 
             color: #00e676; 
@@ -27,12 +26,7 @@
             transition: all 0.3s ease; 
             box-shadow: 0 0 10px rgba(0, 230, 118, 0.1);
         }
-        .nav-btn:hover { 
-            background: #00e676; 
-            color: #121318; 
-            box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
-        }
-        .nav-btn.active { 
+        .nav-btn:hover, .nav-btn.active { 
             background: #00e676; 
             color: #121318; 
             border-color: #00e676;
@@ -47,8 +41,6 @@
         .status-dot.offline { background-color: #ff5252; box-shadow: 0 0 6px rgba(255,82,82,0.5); }
 
         .lang-select { background: #232631; color: white; border: 1px solid #2a2d37; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; outline: none; }
-        .lang-select option { background: #1a1c23; color: white; }
-
         .api-btn { background-color: #2979ff; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; }
         .api-btn:hover { background-color: #1c64d9; }
 
@@ -70,12 +62,10 @@
         .val-positive { color: #00e676; font-weight: 600; }
         .val-negative { color: #ff5252; font-weight: 600; }
 
-        /* Окно детального просмотра сделки (темный контейнер графика) */
         .trade-details-panel { display: none; margin-top: 20px; background: #1a1c23; border: 1px solid #2a2d37; border-radius: 8px; padding: 20px; }
         .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        #chartContainer { width: 100%; height: 450px; background-color: #121318; border-radius: 6px; overflow: hidden; }
+        #chartContainer { width: 100%; height: 400px; background-color: #121318; border-radius: 6px; }
 
-        /* Модальные окна API */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: #1a1c23; padding: 25px; border-radius: 12px; width: 420px; border: 1px solid #2a2d37; position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -89,12 +79,10 @@
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 5px; }
         .form-group input { width: 100%; padding: 10px; background: #121318; border: 1px solid #2a2d37; border-radius: 6px; color: white; font-size: 14px; outline: none; }
-        .form-group input:focus { border-color: #00e676; }
         
         .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .submit-btn { width: 100%; background: #00e676; color: black; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .delete-btn { width: 100%; background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid #ff5252; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; display: none; }
-        .delete-btn:hover { background: rgba(255, 82, 82, 0.3); }
+        .delete-btn { width: 100%; background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid #ff5252; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; display: none; }
 
         .error-msg { color: #ff5252; font-size: 13px; margin-top: 10px; display: none; }
         .main-container { padding: 40px; text-align: center; color: #888; }
@@ -114,7 +102,7 @@
                 <span id="statusText">API не подключен</span>
             </div>
 
-            <select class="lang-select" id="langSelect" onchange="changeLanguage(this.value)">
+            <select class="lang-select" id="langSelect">
                 <option value="ru">Русский</option>
                 <option value="uk">Українська</option>
             </select>
@@ -138,7 +126,10 @@
     </div>
 
     <div class="trades-container" id="tradesBlock">
-        <h3 style="margin-bottom: 15px;">История сделок</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3>История сделок</h3>
+            <button class="connect-btn" onclick="syncTradesFromApi()">🔄 Синхронизировать с Биржей</button>
+        </div>
         <table class="trades-table">
             <thead>
                 <tr>
@@ -207,12 +198,12 @@
             <form id="apiKeysForm" autocomplete="off" onsubmit="saveApiKeys(event)">
                 <input type="hidden" id="selectedPlatform">
                 <div class="form-group">
-                    <label>API Key (Публичный ключ)</label>
-                    <input type="text" id="apiKeyInput" autocomplete="new-password" placeholder="Вставьте API Key" required>
+                    <label>API Key</label>
+                    <input type="text" id="apiKeyInput" required>
                 </div>
                 <div class="form-group">
-                    <label>API Secret (Секретный ключ / Пароль)</label>
-                    <input type="password" id="apiSecretInput" autocomplete="new-password" placeholder="Вставьте API Secret" required>
+                    <label>API Secret</label>
+                    <input type="password" id="apiSecretInput" required>
                 </div>
                 <div class="btn-group">
                     <button type="submit" class="submit-btn" id="submitBtn">Проверить и сохранить</button>
@@ -227,24 +218,25 @@
         const userId = {{ user.id }};
         const userApiKeys = JSON.parse(localStorage.getItem(`user_api_keys_${userId}`) || '{}');
 
-        const sampleTrades = [
+        // Демо-сделки с рабочей структурой свечей
+        let currentTrades = [
             { 
                 ticker: "BLESSUSDT", entry: "05 авг 19:57:52", exit: "05 авг 19:58:02", side: "SHORT", 
                 pnlPercent: "+1.46%", profit: "+2.05 $", revenue: "2.20 $", commission: "0.15 $", volume: "149 $", 
-                chartData: [
-                    { time: 1691230000, open: 0.0240, high: 0.0245, low: 0.0238, close: 0.0242 },
-                    { time: 1691230060, open: 0.0242, high: 0.0268, low: 0.0241, close: 0.0265 },
-                    { time: 1691230120, open: 0.0265, high: 0.0270, low: 0.0235, close: 0.0238 },
-                    { time: 1691230180, open: 0.0238, high: 0.0242, low: 0.0230, close: 0.0234 },
-                    { time: 1691230240, open: 0.0234, high: 0.0240, low: 0.0232, close: 0.0239 }
+                candles: [
+                    { time: 1785959800, open: 0.0240, high: 0.0245, low: 0.0238, close: 0.0242 },
+                    { time: 1785959860, open: 0.0242, high: 0.0268, low: 0.0241, close: 0.0265 },
+                    { time: 1785959920, open: 0.0265, high: 0.0270, low: 0.0235, close: 0.0238 },
+                    { time: 1785959980, open: 0.0238, high: 0.0242, low: 0.0230, close: 0.0234 }
                 ]
             },
             { 
                 ticker: "HEIUSDT", entry: "05 авг 19:13:14", exit: "05 авг 19:13:25", side: "SHORT", 
                 pnlPercent: "-0.85%", profit: "-1.44 $", revenue: "-1.29 $", commission: "0.15 $", volume: "151 $", 
-                chartData: [
-                    { time: 1691230000, open: 0.0510, high: 0.0525, low: 0.0505, close: 0.0520 },
-                    { time: 1691230060, open: 0.0520, high: 0.0530, low: 0.0512, close: 0.0528 }
+                candles: [
+                    { time: 1785957100, open: 0.0510, high: 0.0525, low: 0.0505, close: 0.0520 },
+                    { time: 1785957160, open: 0.0520, high: 0.0530, low: 0.0512, close: 0.0528 },
+                    { time: 1785957220, open: 0.0528, high: 0.0529, low: 0.0500, close: 0.0504 }
                 ]
             }
         ];
@@ -281,11 +273,24 @@
             }
         }
 
+        async function syncTradesFromApi() {
+            try {
+                const res = await fetch(`/api/sync-trades/${userId}`);
+                const data = await res.json();
+                if (data.trades && data.trades.length > 0) {
+                    currentTrades = data.trades;
+                    renderTradesTable();
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        }
+
         function renderTradesTable() {
             const tbody = document.getElementById('tradesTableBody');
             tbody.innerHTML = '';
 
-            sampleTrades.forEach((trade) => {
+            currentTrades.forEach((trade) => {
                 const tr = document.createElement('tr');
                 const isPos = trade.pnlPercent.startsWith('+');
                 tr.onclick = () => openTradeChart(trade);
@@ -311,15 +316,16 @@
             const panel = document.getElementById('tradeDetailsPanel');
             const container = document.getElementById('chartContainer');
             document.getElementById('chartTitle').innerText = `График сделки: ${trade.ticker} (${trade.side})`;
+            
             panel.style.display = 'block';
             container.innerHTML = '';
 
-            // Явное указание темной схемы для предотвращения белого фона
+            // Гарантированное отображение графика
             chartInstance = LightweightCharts.createChart(container, {
-                width: container.clientWidth,
-                height: 450,
+                width: container.clientWidth || 800,
+                height: 400,
                 layout: {
-                    background: { type: 'solid', color: '#121318' },
+                    backgroundColor: '#121318',
                     textColor: '#d1d4dc',
                 },
                 grid: {
@@ -336,7 +342,13 @@
                 wickDownColor: '#ff5252',
             });
 
-            candleSeries.setData(trade.chartData);
+            const candlesData = trade.candles || [
+                { time: 1785959800, open: 0.0240, high: 0.0245, low: 0.0238, close: 0.0242 },
+                { time: 1785959860, open: 0.0242, high: 0.0268, low: 0.0241, close: 0.0265 },
+                { time: 1785959920, open: 0.0265, high: 0.0270, low: 0.0235, close: 0.0238 }
+            ];
+
+            candleSeries.setData(candlesData);
             chartInstance.timeScale().fitContent();
         }
 
