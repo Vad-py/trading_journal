@@ -2,28 +2,241 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Главная — Дневник Трейдера</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal - Главная</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #121214; color: #fff; padding: 40px; }
-        .user-info { display: flex; align-items: center; gap: 15px; background: #1e1e24; padding: 20px; border-radius: 12px; width: fit-content; }
-        .avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #00E676; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121318;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        /* Шапка */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background-color: #1a1c23;
+            border-bottom: 1px solid #2a2d37;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00e676;
+            text-decoration: none;
+        }
+
+        .user-panel {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Кнопка API */
+        .api-btn {
+            background-color: #2979ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .api-btn:hover {
+            background-color: #1c64d9;
+        }
+
+        /* Блок профиля */
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .username {
+            font-weight: 600;
+            font-size: 15px;
+            color: #e0e0e0;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #00e676;
+        }
+
+        .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #2b2e3b;
+            color: #00e676;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid #00e676;
+        }
+
+        /* Модальное окно API Ключей */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #1a1c23;
+            padding: 25px;
+            border-radius: 12px;
+            width: 420px;
+            border: 1px solid #2a2d37;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .service-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .service-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #232631;
+            border-radius: 8px;
+            border: 1px solid #2a2d37;
+        }
+
+        .service-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .connect-btn {
+            background-color: #00e676;
+            color: #000;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .main-container {
+            padding: 40px;
+            text-align: center;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-    <div class="user-info">
-        {% if user.avatar_url %}
-            <img src="{{ user.avatar_url }}" class="avatar" alt="Avatar">
-        {% else %}
-            <div class="avatar" style="background:#444; display:flex; align-items:center; justify-content:center;">👤</div>
-        {% endif %}
-        <div>
-            <h2>Добро пожаловать, {{ user.name }}!</h2>
-            <p style="color: #888;">Логин: @{{ user.username }}</p>
+    <!-- Шапка сайта -->
+    <header>
+        <a href="/" class="logo">Trading Journal</a>
+        
+        <div class="user-panel">
+            <button class="api-btn" onclick="openApiModal()">+ API-ключи</button>
+
+            <div class="profile-info">
+                <span class="username">{{ user.name }}</span>
+                {% if user.avatar_url %}
+                    <img src="{{ user.avatar_url }}" alt="Avatar" class="avatar">
+                {% else %}
+                    <div class="avatar-placeholder">?</div>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Главный контент (будущий журнал сделок) -->
+    <div class="main-container">
+        <h2>Добро пожаловать в Трейдинг Журнал!</h2>
+        <p style="margin-top: 10px;">Подключите API-ключи для автоматической загрузки сделок.</p>
+    </div>
+
+    <!-- Модальное окно API Ключей -->
+    <div class="modal" id="apiModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Подключение API Ключей</h3>
+                <button class="close-btn" onclick="closeApiModal()">&times;</button>
+            </div>
+            
+            <div class="service-list">
+                <div class="service-item">
+                    <span class="service-name">Tiger Trade</span>
+                    <button class="connect-btn">Подключить</button>
+                </div>
+                <div class="service-item">
+                    <span class="service-name">Vataga</span>
+                    <button class="connect-btn">Подключить</button>
+                </div>
+                <div class="service-item">
+                    <span class="service-name">Bybit</span>
+                    <button class="connect-btn">Подключить</button>
+                </div>
+                <div class="service-item">
+                    <span class="service-name">OKX</span>
+                    <button class="connect-btn">Подключить</button>
+                </div>
+                <div class="service-item">
+                    <span class="service-name">Binance</span>
+                    <button class="connect-btn">Подключить</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <h3 style="margin-top: 40px;">Аккаунт успешно создан! Скоро здесь появится статистика сделок.</h3>
+    <script>
+        function openApiModal() {
+            document.getElementById('apiModal').style.display = 'flex';
+        }
 
+        function closeApiModal() {
+            document.getElementById('apiModal').style.display = 'none';
+        }
+    </script>
 </body>
 </html>
