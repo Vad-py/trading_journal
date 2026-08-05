@@ -12,7 +12,27 @@
         .logo { font-size: 20px; font-weight: bold; color: #00e676; text-decoration: none; }
         .user-panel { display: flex; align-items: center; gap: 15px; }
 
-        /* Языковой переключатель */
+        /* Индикатор подключения API */
+        .api-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #232631;
+            padding: 7px 12px;
+            border-radius: 6px;
+            border: 1px solid #2a2d37;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.online { background-color: #00e676; box-shadow: 0 0 6px rgba(0,230,118,0.5); }
+        .status-dot.offline { background-color: #ff5252; box-shadow: 0 0 6px rgba(255,82,82,0.5); }
+
         .lang-select { background: #232631; color: white; border: 1px solid #2a2d37; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; outline: none; }
         .lang-select option { background: #1a1c23; color: white; }
 
@@ -40,7 +60,12 @@
         .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 5px; }
         .form-group input { width: 100%; padding: 10px; background: #121318; border: 1px solid #2a2d37; border-radius: 6px; color: white; font-size: 14px; outline: none; }
         .form-group input:focus { border-color: #00e676; }
+        
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .submit-btn { width: 100%; background: #00e676; color: black; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .delete-btn { width: 100%; background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid #ff5252; padding: 9px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; display: none; }
+        .delete-btn:hover { background: rgba(255, 82, 82, 0.3); }
+
         .error-msg { color: #ff5252; font-size: 13px; margin-top: 10px; display: none; }
 
         .main-container { padding: 40px; text-align: center; color: #888; }
@@ -52,7 +77,13 @@
         <a href="/" class="logo">Trading Journal</a>
         
         <div class="user-panel">
-            <!-- Выбор языка без флагов -->
+            <!-- Индикатор подключения API -->
+            <div class="api-status-badge" id="apiStatusBadge">
+                <span class="status-dot offline" id="statusDot"></span>
+                <span id="statusText">API не подключен</span>
+            </div>
+
+            <!-- Выбор языка -->
             <select class="lang-select" id="langSelect" onchange="changeLanguage(this.value)">
                 <option value="ru">Русский</option>
                 <option value="uk">Українська</option>
@@ -129,15 +160,18 @@
                     <input type="password" id="apiSecretInput" autocomplete="new-password" placeholder="Вставьте API Secret" required>
                 </div>
                 
-                <button type="submit" class="submit-btn" data-i18n="save_btn">Проверить и сохранить</button>
+                <div class="btn-group">
+                    <button type="submit" class="submit-btn" id="submitBtn" data-i18n="save_btn">Проверить и сохранить</button>
+                    <button type="button" class="delete-btn" id="deleteApiBtn" onclick="deleteApiKeys()" data-i18n="delete_btn">Удалить API-ключ</button>
+                </div>
                 <div class="error-msg" id="formError"></div>
             </form>
         </div>
     </div>
 
     <script>
-        // Хранилище привязанных ключей по платформам
-        const userApiKeys = {};
+        const userId = {{ user.id }};
+        const userApiKeys = JSON.parse(localStorage.getItem(`user_api_keys_${userId}`) || '{}');
 
         const translations = {
             ru: {
@@ -146,7 +180,9 @@
                 welcome_desc: "Подключите API-ключи для автоматической загрузки сделок.",
                 modal_title: "Подключение API Ключей",
                 connect: "Подключить",
-                save_btn: "Проверить и сохранить"
+                save_btn: "Проверить и сохранить",
+                delete_btn: "Удалить API-ключ",
+                no_api: "API не подключен"
             },
             uk: {
                 api_btn: "+ API-ключі",
@@ -154,9 +190,26 @@
                 welcome_desc: "Підключіть API-ключі для автоматичного завантаження угод.",
                 modal_title: "Підключення API Ключів",
                 connect: "Підключити",
-                save_btn: "Перевірити та зберегти"
+                save_btn: "Перевірити та зберегти",
+                delete_btn: "Видалити API-ключ",
+                no_api: "API не підключено"
             }
         };
+
+        function updateApiHeaderBadge() {
+            const connected = Object.keys(userApiKeys).filter(p => userApiKeys[p] && userApiKeys[p].key);
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const currentLang = localStorage.getItem('selected_lang') || 'ru';
+
+            if (connected.length > 0) {
+                dot.className = "status-dot online";
+                text.innerText = connected.join(', ');
+            } else {
+                dot.className = "status-dot offline";
+                text.innerText = translations[currentLang].no_api;
+            }
+        }
 
         function changeLanguage(lang) {
             localStorage.setItem('selected_lang', lang);
@@ -166,6 +219,7 @@
                     el.innerText = translations[lang][key];
                 }
             });
+            updateApiHeaderBadge();
         }
 
         const currentLang = localStorage.getItem('selected_lang') || 'ru';
@@ -180,38 +234,78 @@
             document.getElementById('formTitle').innerText = 'Подключение ' + platform;
             document.getElementById('formError').style.display = 'none';
             
-            // Загружаем ключи именно для выданной платформы или очищаем поля
             const savedData = userApiKeys[platform] || { key: '', secret: '' };
             document.getElementById('apiKeyInput').value = savedData.key;
             document.getElementById('apiSecretInput').value = savedData.secret;
 
+            const deleteBtn = document.getElementById('deleteApiBtn');
+            deleteBtn.style.display = savedData.key ? 'block' : 'none';
+
             document.getElementById('keyFormModal').style.display = 'flex';
         }
 
-        function closeKeyForm() { 
-            document.getElementById('keyFormModal').style.display = 'none'; 
-        }
+        function closeKeyForm() { document.getElementById('keyFormModal').style.display = 'none'; }
 
-        function saveApiKeys(e) {
+        async function saveApiKeys(e) {
             e.preventDefault();
             const platform = document.getElementById('selectedPlatform').value;
             const key = document.getElementById('apiKeyInput').value.trim();
             const secret = document.getElementById('apiSecretInput').value.trim();
             const err = document.getElementById('formError');
+            const submitBtn = document.getElementById('submitBtn');
 
-            // Пример быстрой валидации длины и формата
-            if (key.length < 10 || secret.length < 10) {
-                err.innerText = "Ошибка: Перепутаны местами или указаны неверные ключи!";
+            err.style.display = 'none';
+            submitBtn.innerText = "Проверка ключей на бирже...";
+
+            const formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('platform', platform);
+            formData.append('api_key', key);
+            formData.append('api_secret', secret);
+
+            try {
+                const response = await fetch('/api/save-keys', { method: 'POST', body: formData });
+                const result = await response.json();
+
+                if (!response.ok) {
+                    err.innerText = result.message || "Ошибка верификации ключей!";
+                    err.style.display = "block";
+                    submitBtn.innerText = translations[currentLang].save_btn;
+                    return;
+                }
+
+                userApiKeys[platform] = { key, secret };
+                localStorage.setItem(`user_api_keys_${userId}`, JSON.stringify(userApiKeys));
+
+                updateApiHeaderBadge();
+                closeKeyForm();
+                closeApiModal();
+            } catch (error) {
+                err.innerText = "Ошибка соединения с сервером.";
                 err.style.display = "block";
-                return;
+            } finally {
+                submitBtn.innerText = translations[currentLang].save_btn;
             }
+        }
 
-            // Запоминаем данные изолированно по имени платформы
-            userApiKeys[platform] = { key, secret };
+        async function deleteApiKeys() {
+            const platform = document.getElementById('selectedPlatform').value;
+            
+            const formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('platform', platform);
 
-            alert(`Ключи для ${platform} успешно привязаны!`);
+            await fetch('/api/delete-keys', { method: 'POST', body: formData });
+
+            delete userApiKeys[platform];
+            localStorage.setItem(`user_api_keys_${userId}`, JSON.stringify(userApiKeys));
+
+            document.getElementById('apiKeyInput').value = '';
+            document.getElementById('apiSecretInput').value = '';
+            document.getElementById('deleteApiBtn').style.display = 'none';
+
+            updateApiHeaderBadge();
             closeKeyForm();
-            closeApiModal();
         }
     </script>
 </body>
