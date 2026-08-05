@@ -1,11 +1,11 @@
 import os
 import shutil
+import bcrypt
 from fastapi import FastAPI, Request, Form, File, UploadFile, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 
 import models
 from database import engine, get_db
@@ -22,7 +22,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # Хеширование паролей
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def hash_password(password: str) -> str:
+    # Обрезаем пароль до 72 байт (ограничение bcrypt)
+    pwd_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 @app.get("/", response_class=HTMLResponse)
 def show_register_page(request: Request):
@@ -71,7 +75,7 @@ async def register_user(
         avatar_url = f"/{file_location}"
 
     # 4. Запись пользователя в базу данных
-    hashed_pwd = pwd_context.hash(password)
+    hashed_pwd = hash_password(password)
     new_user = models.User(
         name=name,
         username=username,
