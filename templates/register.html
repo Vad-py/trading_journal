@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация — Дневник Трейдера</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121214;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .register-card {
+            background-color: #1e1e24;
+            padding: 30px;
+            border-radius: 12px;
+            width: 320px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h2 { text-align: center; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #ccc; }
+        input[type="text"], input[type="password"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background-color: #2a2a32;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #00E676;
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #00c865; }
+        .error-message {
+            color: #ff5252;
+            font-size: 14px;
+            margin-bottom: 15px;
+            background: rgba(255, 82, 82, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ff5252;
+        }
+    </style>
+</head>
+<body>
+
+<div class="register-card">
+    <h2>Создать аккаунт</h2>
+
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
+
+    <form action="/register" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>Имя</label>
+            <input type="text" name="name" value="{{ name if name }}">
+        </div>
+        <div class="form-group">
+            <label>Логин</label>
+            <input type="text" name="username" value="{{ username if username }}">
+        </div>
+        <div class="form-group">
+            <label>Пароль</label>
+            <input type="password" name="password">
+        </div>
+        <div class="form-group">
+            <label>Аватарка (необязательно)</label>
+            <input type="file" name="avatar" accept="image/*">
+        </div>
+        <button type="submit">Готово</button>
+    </form>
+</div>
+
+</body>
+</html>

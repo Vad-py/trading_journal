@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Главная — Дневник Трейдера</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121214; color: #fff; padding: 40px; }
+        .user-info { display: flex; align-items: center; gap: 15px; background: #1e1e24; padding: 20px; border-radius: 12px; width: fit-content; }
+        .avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #00E676; }
+    </style>
+</head>
+<body>
+
+    <div class="user-info">
+        {% if user.avatar_url %}
+            <img src="{{ user.avatar_url }}" class="avatar" alt="Avatar">
+        {% else %}
+            <div class="avatar" style="background:#444; display:flex; align-items:center; justify-content:center;">👤</div>
+        {% endif %}
+        <div>
+            <h2>Добро пожаловать, {{ user.name }}!</h2>
+            <p style="color: #888;">Логин: @{{ user.username }}</p>
+        </div>
+    </div>
+
+    <h3 style="margin-top: 40px;">Аккаунт успешно создан! Скоро здесь появится статистика сделок.</h3>
+
+</body>
+</html>
