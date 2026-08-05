@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Journal — Дашборд</title>
+    <!-- Своя иконка сайта -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,7 +15,6 @@
             font-family: 'Segoe UI', Arial, sans-serif;
             min-height: 100vh;
         }
-        /* ===== HEADER ===== */
         header {
             display: flex;
             justify-content: space-between;
@@ -108,7 +110,6 @@
             font-size: 14px;
         }
 
-        /* ===== MAIN ===== */
         main { padding: 24px; max-width: 1400px; margin: 0 auto; }
         .top-bar {
             display: flex;
@@ -137,7 +138,6 @@
             margin-left: 12px;
         }
 
-        /* ===== TABLE ===== */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -184,7 +184,6 @@
             color: #848e9c;
         }
 
-        /* ===== CHART ===== */
         #chart-wrap {
             background: #161920;
             border-radius: 10px;
@@ -273,6 +272,15 @@
             border-radius: 6px;
             font-size: 14px;
         }
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        .hint {
+            font-size: 12px;
+            color: #848e9c;
+            margin-top: 4px;
+        }
         .modal-actions {
             display: flex; gap: 10px; margin-top: 20px;
         }
@@ -282,6 +290,25 @@
         }
         .btn-save { background: #00ff88; color: #0a0c10; }
         .btn-cancel { background: #2a2e39; color: #fff; }
+        .api-msg {
+            display: none;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-bottom: 14px;
+            font-size: 13px;
+        }
+        .api-msg.ok {
+            display: block;
+            background: rgba(0,255,136,0.1);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+        .api-msg.err {
+            display: block;
+            background: rgba(246,70,93,0.1);
+            color: #f6465d;
+            border: 1px solid #f6465d;
+        }
         .key-list { margin-top: 18px; }
         .key-item {
             display: flex; justify-content: space-between; align-items: center;
@@ -369,6 +396,10 @@
 <div class="modal-overlay" id="api-modal">
     <div class="modal">
         <h3>🔑 API-ключи</h3>
+        
+        <!-- Сообщение об ошибке / успехе -->
+        <div class="api-msg" id="api-msg"></div>
+
         <div class="form-row">
             <label>Платформа</label>
             <select id="api-platform" onchange="togglePassphrase()">
@@ -378,14 +409,15 @@
                 <option value="Tiger Trade">Tiger Trade</option>
                 <option value="Vataga">Vataga</option>
             </select>
+            <div class="hint" id="platform-hint">Авто-синхронизация сделок доступна</div>
         </div>
         <div class="form-row">
             <label>API Key</label>
-            <input type="text" id="api-key" placeholder="Вставьте API Key">
+            <input type="text" id="api-key" placeholder="Вставьте API Key сюда">
         </div>
         <div class="form-row">
             <label>API Secret</label>
-            <input type="password" id="api-secret" placeholder="Вставьте API Secret">
+            <input type="password" id="api-secret" placeholder="Вставьте API Secret сюда">
         </div>
         <div class="form-row" id="row-passphrase" style="display:none">
             <label>Passphrase (только OKX)</label>
@@ -495,8 +527,9 @@
             const d = await r.json();
             if (d.status === "success") {
                 renderTrades(d.trades);
-                el.textContent = `✅ Обновлено (${d.trades.length})`;
-                setTimeout(() => el.textContent = "", 3000);
+                const info = d.results.map(x => `${x.platform}: ${x.status === 'success' ? '✅' : x.status === 'info' ? 'ℹ️' : '❌'}`).join(' | ');
+                el.textContent = info;
+                setTimeout(() => el.textContent = "", 4000);
             } else {
                 el.textContent = "❌ " + d.message;
                 alert(d.message);
@@ -507,7 +540,7 @@
     function renderTrades(list) {
         const tb = document.getElementById('trades-tbody');
         tb.innerHTML = "";
-        if (!list || !list.length) { showEmpty("Сделок пока нет. Добавьте API-ключи и нажмите «Синхронизировать»"); return; }
+        if (!list || !list.length) { showEmpty("Сделок пока нет. Добавьте API-ключи Bybit / Binance / OKX и нажмите «Синхронизировать»"); return; }
         list.forEach(t => {
             const tr = document.createElement('tr');
             const cls = t.side === "Buy" ? "badge-long" : "badge-short";
@@ -528,24 +561,68 @@
     }
 
     // ========== API MODAL ==========
-    function openApiModal() { document.getElementById('api-modal').classList.add('active'); loadKeyList(); }
+    function openApiModal() {
+        document.getElementById('api-modal').classList.add('active');
+        document.getElementById('api-msg').className = 'api-msg';
+        document.getElementById('api-msg').style.display = 'none';
+        document.getElementById('api-key').value = '';
+        document.getElementById('api-secret').value = '';
+        document.getElementById('api-passphrase').value = '';
+        loadKeyList();
+    }
     function closeApiModal() { document.getElementById('api-modal').classList.remove('active'); }
+    
     function togglePassphrase() {
-        document.getElementById('row-passphrase').style.display =
-            document.getElementById('api-platform').value === 'OKX' ? 'block' : 'none';
+        const plat = document.getElementById('api-platform').value;
+        document.getElementById('row-passphrase').style.display = plat === 'OKX' ? 'block' : 'none';
+        const hint = document.getElementById('platform-hint');
+        if (plat === 'Tiger Trade' || plat === 'Vataga') {
+            hint.innerText = 'Авто-синхронизация пока недоступна для этой платформы';
+            hint.style.color = '#f6465d';
+        } else {
+            hint.innerText = 'Авто-синхронизация сделок доступна';
+            hint.style.color = '#848e9c';
+        }
     }
 
     async function saveApiKeys() {
+        const msgEl = document.getElementById('api-msg');
+        msgEl.className = 'api-msg';
+        msgEl.style.display = 'none';
+
+        const key = document.getElementById('api-key').value.trim();
+        const sec = document.getElementById('api-secret').value.trim();
+        
+        if (!key || !sec) {
+            msgEl.className = 'api-msg err';
+            msgEl.innerText = 'Заполните API Key и API Secret';
+            return;
+        }
+
         const fd = new FormData();
         fd.append('user_id', userId);
         fd.append('platform', document.getElementById('api-platform').value);
-        fd.append('api_key', document.getElementById('api-key').value);
-        fd.append('api_secret', document.getElementById('api-secret').value);
-        fd.append('api_passphrase', document.getElementById('api-passphrase').value);
-        const r = await fetch('/api/save-keys', { method: 'POST', body: fd });
-        const d = await r.json();
-        alert(d.message);
-        if (d.success) { loadKeyList(); updateBrokerBadge(); }
+        fd.append('api_key', key);
+        fd.append('api_secret', sec);
+        fd.append('api_passphrase', document.getElementById('api-passphrase').value.trim());
+
+        try {
+            const r = await fetch('/api/save-keys', { method: 'POST', body: fd });
+            const d = await r.json();
+            if (d.success) {
+                msgEl.className = 'api-msg ok';
+                msgEl.innerText = d.message;
+                loadKeyList();
+                updateBrokerBadge();
+                setTimeout(() => closeApiModal(), 1000);
+            } else {
+                msgEl.className = 'api-msg err';
+                msgEl.innerText = d.message;
+            }
+        } catch (e) {
+            msgEl.className = 'api-msg err';
+            msgEl.innerText = 'Ошибка соединения с сервером';
+        }
     }
 
     async function loadKeyList() {
