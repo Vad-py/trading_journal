@@ -52,10 +52,10 @@
         <a href="/" class="logo">Trading Journal</a>
         
         <div class="user-panel">
-            <!-- Выбор языка -->
+            <!-- Выбор языка без флагов -->
             <select class="lang-select" id="langSelect" onchange="changeLanguage(this.value)">
-                <option value="ru">Русский 🇷🇺</option>
-                <option value="uk">Українська 🇺🇦</option>
+                <option value="ru">Русский</option>
+                <option value="uk">Українська</option>
             </select>
 
             <button class="api-btn" onclick="openApiModal()" data-i18n="api_btn">+ API-ключи</button>
@@ -76,7 +76,7 @@
         <p style="margin-top: 10px;" data-i18n="welcome_desc">Подключите API-ключи для автоматической загрузки сделок.</p>
     </div>
 
-    <!-- Модальное 1: Выбор Биржи -->
+    <!-- Модальное 1: Выбор Платформы -->
     <div class="modal" id="apiModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -109,7 +109,7 @@
         </div>
     </div>
 
-    <!-- Модальное 2: Ввод API ключа и Пароля -->
+    <!-- Модальное 2: Ввод API ключей -->
     <div class="modal" id="keyFormModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -117,16 +117,18 @@
                 <button class="close-btn" onclick="closeKeyForm()">&times;</button>
             </div>
             
-            <form id="apiKeysForm" onsubmit="saveApiKeys(event)">
+            <form id="apiKeysForm" autocomplete="off" onsubmit="saveApiKeys(event)">
                 <input type="hidden" id="selectedPlatform">
+                
                 <div class="form-group">
                     <label>API Key (Публичный ключ)</label>
-                    <input type="text" id="apiKeyInput" placeholder="Вставьте API Key" required>
+                    <input type="text" id="apiKeyInput" autocomplete="new-password" placeholder="Вставьте API Key" required>
                 </div>
                 <div class="form-group">
                     <label>API Secret (Секретный ключ / Пароль)</label>
-                    <input type="password" id="apiSecretInput" placeholder="Вставьте API Secret" required>
+                    <input type="password" id="apiSecretInput" autocomplete="new-password" placeholder="Вставьте API Secret" required>
                 </div>
+                
                 <button type="submit" class="submit-btn" data-i18n="save_btn">Проверить и сохранить</button>
                 <div class="error-msg" id="formError"></div>
             </form>
@@ -134,6 +136,9 @@
     </div>
 
     <script>
+        // Хранилище привязанных ключей по платформам
+        const userApiKeys = {};
+
         const translations = {
             ru: {
                 api_btn: "+ API-ключи",
@@ -163,7 +168,6 @@
             });
         }
 
-        // Авто-загрузка языка
         const currentLang = localStorage.getItem('selected_lang') || 'ru';
         document.getElementById('langSelect').value = currentLang;
         changeLanguage(currentLang);
@@ -174,24 +178,38 @@
         function openKeyForm(platform) {
             document.getElementById('selectedPlatform').value = platform;
             document.getElementById('formTitle').innerText = 'Подключение ' + platform;
+            document.getElementById('formError').style.display = 'none';
+            
+            // Загружаем ключи именно для выданной платформы или очищаем поля
+            const savedData = userApiKeys[platform] || { key: '', secret: '' };
+            document.getElementById('apiKeyInput').value = savedData.key;
+            document.getElementById('apiSecretInput').value = savedData.secret;
+
             document.getElementById('keyFormModal').style.display = 'flex';
         }
-        function closeKeyForm() { document.getElementById('keyFormModal').style.display = 'none'; }
+
+        function closeKeyForm() { 
+            document.getElementById('keyFormModal').style.display = 'none'; 
+        }
 
         function saveApiKeys(e) {
             e.preventDefault();
             const platform = document.getElementById('selectedPlatform').value;
-            const key = document.getElementById('apiKeyInput').value;
-            const secret = document.getElementById('apiSecretInput').value;
-            
-            // Заглушка проверки валидации (на этапе сервера будет вызов REST API)
+            const key = document.getElementById('apiKeyInput').value.trim();
+            const secret = document.getElementById('apiSecretInput').value.trim();
+            const err = document.getElementById('formError');
+
+            // Пример быстрой валидации длины и формата
             if (key.length < 10 || secret.length < 10) {
-                const err = document.getElementById('formError');
                 err.innerText = "Ошибка: Перепутаны местами или указаны неверные ключи!";
                 err.style.display = "block";
                 return;
             }
-            alert(`Ключи для ${platform} успешно привязаны и проверены!`);
+
+            // Запоминаем данные изолированно по имени платформы
+            userApiKeys[platform] = { key, secret };
+
+            alert(`Ключи для ${platform} успешно привязаны!`);
             closeKeyForm();
             closeApiModal();
         }
