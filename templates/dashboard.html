@@ -3,181 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Journal - Главная</title>
+    <title>Trading Journal</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background-color: #121318; color: #ffffff; min-height: 100vh; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background-color: #1a1c23; border-bottom: 1px solid #2a2d37; }
+        .logo { font-size: 20px; font-weight: bold; color: #00e676; text-decoration: none; }
+        .user-panel { display: flex; align-items: center; gap: 15px; }
 
-        body {
-            background-color: #121318;
-            color: #ffffff;
-            min-height: 100vh;
-        }
+        /* Языковой переключатель */
+        .lang-select { background: #232631; color: white; border: 1px solid #2a2d37; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; outline: none; }
+        .lang-select option { background: #1a1c23; color: white; }
 
-        /* Шапка */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 30px;
-            background-color: #1a1c23;
-            border-bottom: 1px solid #2a2d37;
-        }
+        .api-btn { background-color: #2979ff; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .api-btn:hover { background-color: #1c64d9; }
 
-        .logo {
-            font-size: 20px;
-            font-weight: bold;
-            color: #00e676;
-            text-decoration: none;
-        }
+        .profile-info { display: flex; align-items: center; gap: 10px; margin-left: 5px; }
+        .username { font-weight: 600; font-size: 15px; color: #e0e0e0; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #00e676; }
+        .avatar-placeholder { width: 40px; height: 40px; border-radius: 50%; background-color: #2b2e3b; color: #00e676; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; border: 2px solid #00e676; }
 
-        .user-panel {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
+        /* Модальные окна */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #1a1c23; padding: 25px; border-radius: 12px; width: 420px; border: 1px solid #2a2d37; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-btn { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
 
-        /* Кнопка API */
-        .api-btn {
-            background-color: #2979ff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            transition: 0.2s;
-        }
+        .service-list { display: flex; flex-direction: column; gap: 12px; }
+        .service-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #232631; border-radius: 8px; border: 1px solid #2a2d37; }
+        .service-name { font-weight: 600; font-size: 15px; }
+        .connect-btn { background-color: #00e676; color: #000; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; }
 
-        .api-btn:hover {
-            background-color: #1c64d9;
-        }
+        /* Форма ключей */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 5px; }
+        .form-group input { width: 100%; padding: 10px; background: #121318; border: 1px solid #2a2d37; border-radius: 6px; color: white; font-size: 14px; outline: none; }
+        .form-group input:focus { border-color: #00e676; }
+        .submit-btn { width: 100%; background: #00e676; color: black; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .error-msg { color: #ff5252; font-size: 13px; margin-top: 10px; display: none; }
 
-        /* Блок профиля */
-        .profile-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .username {
-            font-weight: 600;
-            font-size: 15px;
-            color: #e0e0e0;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #00e676;
-        }
-
-        .avatar-placeholder {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #2b2e3b;
-            color: #00e676;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: bold;
-            border: 2px solid #00e676;
-        }
-
-        /* Модальное окно API Ключей */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: #1a1c23;
-            padding: 25px;
-            border-radius: 12px;
-            width: 420px;
-            border: 1px solid #2a2d37;
-            position: relative;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-        .service-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .service-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 15px;
-            background: #232631;
-            border-radius: 8px;
-            border: 1px solid #2a2d37;
-        }
-
-        .service-name {
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        .connect-btn {
-            background-color: #00e676;
-            color: #000;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .main-container {
-            padding: 40px;
-            text-align: center;
-            color: #888;
-        }
+        .main-container { padding: 40px; text-align: center; color: #888; }
     </style>
 </head>
 <body>
 
-    <!-- Шапка сайта -->
     <header>
         <a href="/" class="logo">Trading Journal</a>
         
         <div class="user-panel">
-            <button class="api-btn" onclick="openApiModal()">+ API-ключи</button>
+            <!-- Выбор языка -->
+            <select class="lang-select" id="langSelect" onchange="changeLanguage(this.value)">
+                <option value="ru">Русский 🇷🇺</option>
+                <option value="uk">Українська 🇺🇦</option>
+            </select>
+
+            <button class="api-btn" onclick="openApiModal()" data-i18n="api_btn">+ API-ключи</button>
 
             <div class="profile-info">
                 <span class="username">{{ user.name }}</span>
@@ -190,52 +71,129 @@
         </div>
     </header>
 
-    <!-- Главный контент (будущий журнал сделок) -->
     <div class="main-container">
-        <h2>Добро пожаловать в Трейдинг Журнал!</h2>
-        <p style="margin-top: 10px;">Подключите API-ключи для автоматической загрузки сделок.</p>
+        <h2 data-i18n="welcome_title">Добро пожаловать в Трейдинг Журнал!</h2>
+        <p style="margin-top: 10px;" data-i18n="welcome_desc">Подключите API-ключи для автоматической загрузки сделок.</p>
     </div>
 
-    <!-- Модальное окно API Ключей -->
+    <!-- Модальное 1: Выбор Биржи -->
     <div class="modal" id="apiModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Подключение API Ключей</h3>
+                <h3 data-i18n="modal_title">Подключение API Ключей</h3>
                 <button class="close-btn" onclick="closeApiModal()">&times;</button>
             </div>
             
             <div class="service-list">
                 <div class="service-item">
                     <span class="service-name">Tiger Trade</span>
-                    <button class="connect-btn">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Tiger Trade')" data-i18n="connect">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">Vataga</span>
-                    <button class="connect-btn">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Vataga')" data-i18n="connect">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">Bybit</span>
-                    <button class="connect-btn">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Bybit')" data-i18n="connect">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">OKX</span>
-                    <button class="connect-btn">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('OKX')" data-i18n="connect">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">Binance</span>
-                    <button class="connect-btn">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Binance')" data-i18n="connect">Подключить</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Модальное 2: Ввод API ключа и Пароля -->
+    <div class="modal" id="keyFormModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="formTitle">Подключение</h3>
+                <button class="close-btn" onclick="closeKeyForm()">&times;</button>
+            </div>
+            
+            <form id="apiKeysForm" onsubmit="saveApiKeys(event)">
+                <input type="hidden" id="selectedPlatform">
+                <div class="form-group">
+                    <label>API Key (Публичный ключ)</label>
+                    <input type="text" id="apiKeyInput" placeholder="Вставьте API Key" required>
+                </div>
+                <div class="form-group">
+                    <label>API Secret (Секретный ключ / Пароль)</label>
+                    <input type="password" id="apiSecretInput" placeholder="Вставьте API Secret" required>
+                </div>
+                <button type="submit" class="submit-btn" data-i18n="save_btn">Проверить и сохранить</button>
+                <div class="error-msg" id="formError"></div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        function openApiModal() {
-            document.getElementById('apiModal').style.display = 'flex';
+        const translations = {
+            ru: {
+                api_btn: "+ API-ключи",
+                welcome_title: "Добро пожаловать в Трейдинг Журнал!",
+                welcome_desc: "Подключите API-ключи для автоматической загрузки сделок.",
+                modal_title: "Подключение API Ключей",
+                connect: "Подключить",
+                save_btn: "Проверить и сохранить"
+            },
+            uk: {
+                api_btn: "+ API-ключі",
+                welcome_title: "Ласкаво просимо до Трейдинг Журналу!",
+                welcome_desc: "Підключіть API-ключі для автоматичного завантаження угод.",
+                modal_title: "Підключення API Ключів",
+                connect: "Підключити",
+                save_btn: "Перевірити та зберегти"
+            }
+        };
+
+        function changeLanguage(lang) {
+            localStorage.setItem('selected_lang', lang);
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerText = translations[lang][key];
+                }
+            });
         }
 
-        function closeApiModal() {
-            document.getElementById('apiModal').style.display = 'none';
+        // Авто-загрузка языка
+        const currentLang = localStorage.getItem('selected_lang') || 'ru';
+        document.getElementById('langSelect').value = currentLang;
+        changeLanguage(currentLang);
+
+        function openApiModal() { document.getElementById('apiModal').style.display = 'flex'; }
+        function closeApiModal() { document.getElementById('apiModal').style.display = 'none'; }
+
+        function openKeyForm(platform) {
+            document.getElementById('selectedPlatform').value = platform;
+            document.getElementById('formTitle').innerText = 'Подключение ' + platform;
+            document.getElementById('keyFormModal').style.display = 'flex';
+        }
+        function closeKeyForm() { document.getElementById('keyFormModal').style.display = 'none'; }
+
+        function saveApiKeys(e) {
+            e.preventDefault();
+            const platform = document.getElementById('selectedPlatform').value;
+            const key = document.getElementById('apiKeyInput').value;
+            const secret = document.getElementById('apiSecretInput').value;
+            
+            // Заглушка проверки валидации (на этапе сервера будет вызов REST API)
+            if (key.length < 10 || secret.length < 10) {
+                const err = document.getElementById('formError');
+                err.innerText = "Ошибка: Перепутаны местами или указаны неверные ключи!";
+                err.style.display = "block";
+                return;
+            }
+            alert(`Ключи для ${platform} успешно привязаны и проверены!`);
+            closeKeyForm();
+            closeApiModal();
         }
     </script>
 </body>
