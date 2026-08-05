@@ -4,32 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Journal</title>
+    <!-- Библиотека графиков TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background-color: #121318; color: #ffffff; min-height: 100vh; }
         
         header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background-color: #1a1c23; border-bottom: 1px solid #2a2d37; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
         .logo { font-size: 20px; font-weight: bold; color: #00e676; text-decoration: none; }
+        
+        .nav-btn { background: transparent; color: #aaa; border: none; font-size: 15px; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 6px; transition: 0.2s; }
+        .nav-btn:hover, .nav-btn.active { color: #fff; background: #232631; }
+
         .user-panel { display: flex; align-items: center; gap: 15px; }
 
-        /* Индикатор подключения API */
-        .api-status-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #232631;
-            padding: 7px 12px;
-            border-radius: 6px;
-            border: 1px solid #2a2d37;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
+        .api-status-badge { display: flex; align-items: center; gap: 8px; background: #232631; padding: 7px 12px; border-radius: 6px; border: 1px solid #2a2d37; font-size: 13px; font-weight: 600; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         .status-dot.online { background-color: #00e676; box-shadow: 0 0 6px rgba(0,230,118,0.5); }
         .status-dot.offline { background-color: #ff5252; box-shadow: 0 0 6px rgba(255,82,82,0.5); }
 
@@ -44,7 +35,25 @@
         .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #00e676; }
         .avatar-placeholder { width: 40px; height: 40px; border-radius: 50%; background-color: #2b2e3b; color: #00e676; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; border: 2px solid #00e676; }
 
-        /* Модальные окна */
+        /* Таблица Сделок */
+        .trades-container { padding: 25px 30px; display: none; }
+        .trades-table { width: 100%; border-collapse: collapse; background: #1a1c23; border-radius: 8px; overflow: hidden; border: 1px solid #2a2d37; }
+        .trades-table th { background: #232631; padding: 12px 15px; text-align: left; font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; border-bottom: 1px solid #2a2d37; }
+        .trades-table td { padding: 14px 15px; font-size: 13px; border-bottom: 1px solid #222530; cursor: pointer; }
+        .trades-table tr:hover { background: #232631; }
+
+        .badge-long { background: rgba(0, 230, 118, 0.15); color: #00e676; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+        .badge-short { background: rgba(255, 82, 82, 0.15); color: #ff5252; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+        
+        .val-positive { color: #00e676; font-weight: 600; }
+        .val-negative { color: #ff5252; font-weight: 600; }
+
+        /* Окно детального просмотра сделки (с графиком) */
+        .trade-details-panel { display: none; margin-top: 20px; background: #1a1c23; border: 1px solid #2a2d37; border-radius: 8px; padding: 20px; }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        #chartContainer { width: 100%; height: 400px; background: #121318; border-radius: 6px; }
+
+        /* Модальные окна API */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: #1a1c23; padding: 25px; border-radius: 12px; width: 420px; border: 1px solid #2a2d37; position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -55,7 +64,6 @@
         .service-name { font-weight: 600; font-size: 15px; }
         .connect-btn { background-color: #00e676; color: #000; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; }
 
-        /* Форма ключей */
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 5px; }
         .form-group input { width: 100%; padding: 10px; background: #121318; border: 1px solid #2a2d37; border-radius: 6px; color: white; font-size: 14px; outline: none; }
@@ -67,29 +75,29 @@
         .delete-btn:hover { background: rgba(255, 82, 82, 0.3); }
 
         .error-msg { color: #ff5252; font-size: 13px; margin-top: 10px; display: none; }
-
         .main-container { padding: 40px; text-align: center; color: #888; }
     </style>
 </head>
 <body>
 
     <header>
-        <a href="/" class="logo">Trading Journal</a>
+        <div class="header-left">
+            <a href="/" class="logo">Trading Journal</a>
+            <button class="nav-btn" id="tradesNavBtn" onclick="toggleTradesView()">Мои сделки</button>
+        </div>
         
         <div class="user-panel">
-            <!-- Индикатор подключения API -->
             <div class="api-status-badge" id="apiStatusBadge">
                 <span class="status-dot offline" id="statusDot"></span>
                 <span id="statusText">API не подключен</span>
             </div>
 
-            <!-- Выбор языка -->
             <select class="lang-select" id="langSelect" onchange="changeLanguage(this.value)">
                 <option value="ru">Русский</option>
                 <option value="uk">Українська</option>
             </select>
 
-            <button class="api-btn" onclick="openApiModal()" data-i18n="api_btn">+ API-ключи</button>
+            <button class="api-btn" onclick="openApiModal()">+ API-ключи</button>
 
             <div class="profile-info">
                 <span class="username">{{ user.name }}</span>
@@ -102,55 +110,85 @@
         </div>
     </header>
 
-    <div class="main-container">
-        <h2 data-i18n="welcome_title">Добро пожаловать в Трейдинг Журнал!</h2>
-        <p style="margin-top: 10px;" data-i18n="welcome_desc">Подключите API-ключи для автоматической загрузки сделок.</p>
+    <!-- Главный баннер приветствия -->
+    <div class="main-container" id="welcomeBlock">
+        <h2>Добро пожаловать в Трейдинг Журнал!</h2>
+        <p style="margin-top: 10px;">Подключите API-ключи для автоматической загрузки сделок.</p>
     </div>
 
-    <!-- Модальное 1: Выбор Платформы -->
+    <!-- Раздел "Мои сделки" -->
+    <div class="trades-container" id="tradesBlock">
+        <h3 style="margin-bottom: 15px;">История сделок</h3>
+        <table class="trades-table">
+            <thead>
+                <tr>
+                    <th>Тикер</th>
+                    <th>Вход (Время)</th>
+                    <th>Выход (Время)</th>
+                    <th>Сторона</th>
+                    <th>Процент</th>
+                    <th>Прибыль ($)</th>
+                    <th>Доход ($)</th>
+                    <th>Комиссия</th>
+                    <th>Объём ($)</th>
+                </tr>
+            </thead>
+            <tbody id="tradesTableBody">
+                <!-- Сделки загружаются скриптом -->
+            </tbody>
+        </table>
+
+        <!-- Блок графика для открытой сделки -->
+        <div class="trade-details-panel" id="tradeDetailsPanel">
+            <div class="chart-header">
+                <h3 id="chartTitle">График сделки</h3>
+                <button class="close-btn" onclick="closeChart()">&times;</button>
+            </div>
+            <div id="chartContainer"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно выбора платформы -->
     <div class="modal" id="apiModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 data-i18n="modal_title">Подключение API Ключей</h3>
+                <h3>Подключение API Ключей</h3>
                 <button class="close-btn" onclick="closeApiModal()">&times;</button>
             </div>
-            
             <div class="service-list">
                 <div class="service-item">
                     <span class="service-name">Tiger Trade</span>
-                    <button class="connect-btn" onclick="openKeyForm('Tiger Trade')" data-i18n="connect">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Tiger Trade')">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">Vataga</span>
-                    <button class="connect-btn" onclick="openKeyForm('Vataga')" data-i18n="connect">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Vataga')">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">Bybit</span>
-                    <button class="connect-btn" onclick="openKeyForm('Bybit')" data-i18n="connect">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Bybit')">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">OKX</span>
-                    <button class="connect-btn" onclick="openKeyForm('OKX')" data-i18n="connect">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('OKX')">Подключить</button>
                 </div>
                 <div class="service-item">
                     <span class="service-name">Binance</span>
-                    <button class="connect-btn" onclick="openKeyForm('Binance')" data-i18n="connect">Подключить</button>
+                    <button class="connect-btn" onclick="openKeyForm('Binance')">Подключить</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное 2: Ввод API ключей -->
+    <!-- Модальное окно ввода ключей -->
     <div class="modal" id="keyFormModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="formTitle">Подключение</h3>
                 <button class="close-btn" onclick="closeKeyForm()">&times;</button>
             </div>
-            
             <form id="apiKeysForm" autocomplete="off" onsubmit="saveApiKeys(event)">
                 <input type="hidden" id="selectedPlatform">
-                
                 <div class="form-group">
                     <label>API Key (Публичный ключ)</label>
                     <input type="text" id="apiKeyInput" autocomplete="new-password" placeholder="Вставьте API Key" required>
@@ -159,10 +197,9 @@
                     <label>API Secret (Секретный ключ / Пароль)</label>
                     <input type="password" id="apiSecretInput" autocomplete="new-password" placeholder="Вставьте API Secret" required>
                 </div>
-                
                 <div class="btn-group">
-                    <button type="submit" class="submit-btn" id="submitBtn" data-i18n="save_btn">Проверить и сохранить</button>
-                    <button type="button" class="delete-btn" id="deleteApiBtn" onclick="deleteApiKeys()" data-i18n="delete_btn">Удалить API-ключ</button>
+                    <button type="submit" class="submit-btn" id="submitBtn">Проверить и сохранить</button>
+                    <button type="button" class="delete-btn" id="deleteApiBtn" onclick="deleteApiKeys()">Удалить API-ключ</button>
                 </div>
                 <div class="error-msg" id="formError"></div>
             </form>
@@ -173,58 +210,98 @@
         const userId = {{ user.id }};
         const userApiKeys = JSON.parse(localStorage.getItem(`user_api_keys_${userId}`) || '{}');
 
-        const translations = {
-            ru: {
-                api_btn: "+ API-ключи",
-                welcome_title: "Добро пожаловать в Трейдинг Журнал!",
-                welcome_desc: "Подключите API-ключи для автоматической загрузки сделок.",
-                modal_title: "Подключение API Ключей",
-                connect: "Подключить",
-                save_btn: "Проверить и сохранить",
-                delete_btn: "Удалить API-ключ",
-                no_api: "API не подключен"
-            },
-            uk: {
-                api_btn: "+ API-ключі",
-                welcome_title: "Ласкаво просимо до Трейдинг Журналу!",
-                welcome_desc: "Підключіть API-ключі для автоматичного завантаження угод.",
-                modal_title: "Підключення API Ключів",
-                connect: "Підключити",
-                save_btn: "Перевірити та зберегти",
-                delete_btn: "Видалити API-ключ",
-                no_api: "API не підключено"
-            }
-        };
+        // Пример подгружаемых сделок (в будущем наполняются от API)
+        const sampleTrades = [
+            { ticker: "BLESSUSDT", entry: "05 авг 19:57:52", exit: "05 авг 19:58:02", side: "SHORT", pnlPercent: "+1.46%", profit: "+2.05 $", revenue: "2.20 $", commission: "0.15 $", volume: "149 $", chartData: [
+                { time: '2026-08-05', open: 0.023, high: 0.027, low: 0.022, close: 0.025 },
+                { time: '2026-08-06', open: 0.025, high: 0.026, low: 0.023, close: 0.023 }
+            ]},
+            { ticker: "HEIUSDT", entry: "05 авг 19:13:14", exit: "05 авг 19:13:25", side: "SHORT", pnlPercent: "-0.85%", profit: "-1.44 $", revenue: "-1.29 $", commission: "0.15 $", volume: "151 $", chartData: [
+                { time: '2026-08-05', open: 0.050, high: 0.052, low: 0.048, close: 0.051 }
+            ]}
+        ];
 
         function updateApiHeaderBadge() {
             const connected = Object.keys(userApiKeys).filter(p => userApiKeys[p] && userApiKeys[p].key);
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
-            const currentLang = localStorage.getItem('selected_lang') || 'ru';
 
             if (connected.length > 0) {
                 dot.className = "status-dot online";
                 text.innerText = connected.join(', ');
             } else {
                 dot.className = "status-dot offline";
-                text.innerText = translations[currentLang].no_api;
+                text.innerText = "API не подключен";
+            }
+        }
+        updateApiHeaderBadge();
+
+        function toggleTradesView() {
+            const welcome = document.getElementById('welcomeBlock');
+            const trades = document.getElementById('tradesBlock');
+            const btn = document.getElementById('tradesNavBtn');
+
+            if (trades.style.display === 'block') {
+                trades.style.display = 'none';
+                welcome.style.display = 'block';
+                btn.classList.remove('active');
+            } else {
+                welcome.style.display = 'none';
+                trades.style.display = 'block';
+                btn.classList.add('active');
+                renderTradesTable();
             }
         }
 
-        function changeLanguage(lang) {
-            localStorage.setItem('selected_lang', lang);
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (translations[lang] && translations[lang][key]) {
-                    el.innerText = translations[lang][key];
-                }
+        function renderTradesTable() {
+            const tbody = document.getElementById('tradesTableBody');
+            tbody.innerHTML = '';
+
+            sampleTrades.forEach((trade, idx) => {
+                const tr = document.createElement('tr');
+                const isPos = trade.pnlPercent.startsWith('+');
+                tr.onclick = () => openTradeChart(trade);
+
+                tr.innerHTML = `
+                    <td><b>${trade.ticker}</b></td>
+                    <td>${trade.entry}</td>
+                    <td>${trade.exit}</td>
+                    <td><span class="${trade.side === 'LONG' ? 'badge-long' : 'badge-short'}">${trade.side}</span></td>
+                    <td class="${isPos ? 'val-positive' : 'val-negative'}">${trade.pnlPercent}</td>
+                    <td class="${isPos ? 'val-positive' : 'val-negative'}">${trade.profit}</td>
+                    <td>${trade.revenue}</td>
+                    <td>${trade.commission}</td>
+                    <td>${trade.volume}</td>
+                `;
+                tbody.appendChild(tr);
             });
-            updateApiHeaderBadge();
         }
 
-        const currentLang = localStorage.getItem('selected_lang') || 'ru';
-        document.getElementById('langSelect').value = currentLang;
-        changeLanguage(currentLang);
+        let chartInstance = null;
+
+        function openTradeChart(trade) {
+            const panel = document.getElementById('tradeDetailsPanel');
+            const container = document.getElementById('chartContainer');
+            document.getElementById('chartTitle').innerText = `График сделки: ${trade.ticker} (${trade.side})`;
+            panel.style.display = 'block';
+            container.innerHTML = '';
+
+            chartInstance = LightweightCharts.createChart(container, {
+                layout: { backgroundColor: '#121318', textColor: '#d1d4dc' },
+                grid: { vertLines: { color: '#222530' }, horzLines: { color: '#222530' } }
+            });
+
+            const candleSeries = chartInstance.addCandlestickSeries({
+                upColor: '#00e676', downColor: '#ff5252',
+                borderVisible: false, wickUpColor: '#00e676', wickDownColor: '#ff5252'
+            });
+
+            candleSeries.setData(trade.chartData);
+        }
+
+        function closeChart() {
+            document.getElementById('tradeDetailsPanel').style.display = 'none';
+        }
 
         function openApiModal() { document.getElementById('apiModal').style.display = 'flex'; }
         function closeApiModal() { document.getElementById('apiModal').style.display = 'none'; }
@@ -238,9 +315,7 @@
             document.getElementById('apiKeyInput').value = savedData.key;
             document.getElementById('apiSecretInput').value = savedData.secret;
 
-            const deleteBtn = document.getElementById('deleteApiBtn');
-            deleteBtn.style.display = savedData.key ? 'block' : 'none';
-
+            document.getElementById('deleteApiBtn').style.display = savedData.key ? 'block' : 'none';
             document.getElementById('keyFormModal').style.display = 'flex';
         }
 
@@ -255,7 +330,7 @@
             const submitBtn = document.getElementById('submitBtn');
 
             err.style.display = 'none';
-            submitBtn.innerText = "Проверка ключей на бирже...";
+            submitBtn.innerText = "Строгая проверка на сервере...";
 
             const formData = new FormData();
             formData.append('user_id', userId);
@@ -268,9 +343,8 @@
                 const result = await response.json();
 
                 if (!response.ok) {
-                    err.innerText = result.message || "Ошибка верификации ключей!";
+                    err.innerText = result.message || "Ошибка верификации!";
                     err.style.display = "block";
-                    submitBtn.innerText = translations[currentLang].save_btn;
                     return;
                 }
 
@@ -284,13 +358,12 @@
                 err.innerText = "Ошибка соединения с сервером.";
                 err.style.display = "block";
             } finally {
-                submitBtn.innerText = translations[currentLang].save_btn;
+                submitBtn.innerText = "Проверить и сохранить";
             }
         }
 
         async function deleteApiKeys() {
             const platform = document.getElementById('selectedPlatform').value;
-            
             const formData = new FormData();
             formData.append('user_id', userId);
             formData.append('platform', platform);
